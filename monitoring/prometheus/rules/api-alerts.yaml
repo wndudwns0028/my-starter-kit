@@ -1,0 +1,35 @@
+groups:
+  - name: api.alerts
+    rules:
+      # 파드 다운
+      - alert: APIServiceDown
+        expr: up{job="devops-starter-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 서비스 다운"
+          description: "{{ $labels.instance }} 인스턴스가 1분 이상 응답하지 않습니다."
+
+      # 요청 급감 (트래픽 이상 징후)
+      - alert: LowRequestRate
+        expr: |
+          sum(rate(http_requests_total[5m])) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "요청률 비정상적으로 낮음"
+          description: "최근 10분간 RPS {{ $value | humanize }}. 배포 실패 또는 트래픽 단절 가능성."
+
+      # HPA 최대 스케일 도달
+      - alert: HPAMaxReplicasReached
+        expr: |
+          kube_horizontalpodautoscaler_status_current_replicas
+          >= kube_horizontalpodautoscaler_spec_max_replicas
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HPA 최대 파드 수 도달"
+          description: "{{ $labels.namespace }}/{{ $labels.horizontalpodautoscaler }} HPA가 최대 레플리카 수에 도달했습니다. 용량 증설 검토 필요."

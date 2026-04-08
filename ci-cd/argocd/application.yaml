@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devops-starter
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # 본인 레포지토리 URL로 변경 필요
+    repoURL: https://github.com/wndudwns0028/my-starter-kit
+    targetRevision: main
+    path: kubernetes/base
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devops-starter
+  syncPolicy:
+    automated:
+      prune: true        # 삭제된 K8s 리소스 자동 제거
+      selfHeal: true     # kubectl 수동 변경 시 Git 상태로 자동 복구
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

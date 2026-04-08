@@ -1,0 +1,19 @@
+# GPU 지원 Ray Serve 이미지
+FROM rayproject/ray:2.35.0-gpu
+
+WORKDIR /app
+
+# Python 의존성 설치
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 앱 소스 복사
+COPY serve_app.py vellum_client.py ./
+
+# Ray Serve 포트
+EXPOSE 8001
+
+ENV RAY_ADDRESS=auto
+ENV MODEL_NAME=microsoft/DialoGPT-small
+
+CMD ["python", "serve_app.py"]

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devops-starter
+  labels:
+    app.kubernetes.io/name: devops-starter
+    monitoring: "true"    # Prometheus ServiceMonitor 자동 발견용

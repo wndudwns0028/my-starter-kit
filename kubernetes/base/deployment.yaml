@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-starter-api
+  namespace: devops-starter
+  labels:
+    app: devops-starter-api
+    version: "1.0.0"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: devops-starter-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0    # 무중단 배포: 항상 2개 파드 유지
+      maxSurge: 1          # 최대 3개까지 일시 허용
+  template:
+    metadata:
+      labels:
+        app: devops-starter-api
+        version: "1.0.0"
+      annotations:
+        # Prometheus가 이 파드를 직접 스크레이핑 (ServiceMonitor 보완용)
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8000"
+    spec:
+      # 그레이스풀 종료 시간 (SIGTERM 후 처리 완료 대기)
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: api
+          # ArgoCD/CD 파이프라인이 이 태그를 자동으로 업데이트함
+          image: devops-starter-api:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: devops-starter-api-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          # K8s probe: 앱이 살아있는지 주기적 확인
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          # K8s probe: 트래픽 수신 가능 여부 확인 (Redis 연결 포함)
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          # K8s probe: 초기 시작 완료 여부 (느린 시작 앱 대비)
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12    # 최대 60초 대기
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp    # readOnlyRootFilesystem이므로 tmp는 emptyDir
+      volumes:
+        - name: tmp
+          emptyDir: {}

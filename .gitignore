@@ -1,0 +1,35 @@
+# 환경변수
+.env
+.env.local
+
+# Claude Code 로컬 설정
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+coverage.xml
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+
+# 로컬 빌드
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp

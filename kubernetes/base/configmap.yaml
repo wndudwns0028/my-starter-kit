@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devops-starter-api-config
+  namespace: devops-starter
+data:
+  APP_ENV: "production"
+  APP_PORT: "8000"
+  LOG_LEVEL: "info"
+  REDIS_URL: "redis://redis-service:6379"

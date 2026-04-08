@@ -1,0 +1,49 @@
+# kube-prometheus-stack Helm 설치 설정
+# helm upgrade --install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#   -f kubernetes/monitoring/prometheus/values.yaml --namespace monitoring --create-namespace
+
+prometheus:
+  prometheusSpec:
+    # 모든 네임스페이스의 ServiceMonitor 감시
+    serviceMonitorSelectorNilUsesHelmValues: false
+    serviceMonitorSelector: {}
+    serviceMonitorNamespaceSelector: {}
+    # 커스텀 알림 규칙 파일 마운트
+    additionalScrapeConfigs: []
+    retention: 30d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+grafana:
+  adminPassword: "admin"
+  grafana.ini:
+    users:
+      allow_sign_up: false
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: "devops-starter"
+          orgId: 1
+          folder: "DevOps Starter"
+          type: file
+          disableDeletion: false
+          options:
+            path: /var/lib/grafana/dashboards/devops-starter
+  dashboardsConfigMaps:
+    devops-starter: "grafana-dashboards"
+
+alertmanager:
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi

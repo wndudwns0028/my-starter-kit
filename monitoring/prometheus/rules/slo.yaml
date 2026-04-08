@@ -1,0 +1,73 @@
+groups:
+  - name: slo.availability
+    interval: 30s
+    rules:
+      # ---- SLO 기록 규칙 ----
+      # 5분 에러율 (Burn Rate 계산용)
+      - record: job:http_error_rate:ratio_rate5m
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      # 1시간 에러율
+      - record: job:http_error_rate:ratio_rate1h
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total[1h]))
+
+      # ---- Availability SLO: 99.9% (월 43분 허용) ----
+      # Error Budget = 0.1% → 에러율 임계값 = 0.001
+
+      # Fast Burn: 1시간 내 에러율이 14.4배 초과 (2시간 안에 Budget 소진)
+      - alert: SLO_FastBurn_Availability
+        expr: job:http_error_rate:ratio_rate5m > (14.4 * 0.001)
+        for: 2m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "Availability SLO Fast Burn 감지"
+          description: "에러율 {{ $value | humanizePercentage }}가 Fast Burn 임계값(1.44%)을 초과했습니다. 2시간 내 월간 Error Budget이 소진될 수 있습니다."
+
+      # Slow Burn: 6시간 내 에러율이 6배 초과 (1일 안에 Budget 소진)
+      - alert: SLO_SlowBurn_Availability
+        expr: job:http_error_rate:ratio_rate1h > (6 * 0.001)
+        for: 15m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Availability SLO Slow Burn 감지"
+          description: "에러율 {{ $value | humanizePercentage }}가 Slow Burn 임계값(0.6%)을 초과했습니다."
+
+  - name: slo.latency
+    interval: 30s
+    rules:
+      # ---- Latency SLO: p99 < 500ms ----
+      - alert: SLO_HighLatency_p99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "p99 응답 지연 SLO 위반"
+          description: "p99 응답시간 {{ $value | humanizeDuration }}이 500ms SLO를 초과했습니다."
+
+      - alert: SLO_HighLatency_p50
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "p50 응답 지연 증가"
+          description: "p50 응답시간 {{ $value | humanizeDuration }}이 200ms를 초과했습니다."

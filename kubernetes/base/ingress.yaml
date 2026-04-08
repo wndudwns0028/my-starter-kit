@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-starter-api
+  namespace: devops-starter
+  annotations:
+    # 로컬(minikube): nginx 사용
+    # AWS: kubernetes.io/ingress.class: alb 로 변경
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.local    # /etc/hosts에 minikube IP로 등록 필요
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-starter-api
+                port:
+                  name: http

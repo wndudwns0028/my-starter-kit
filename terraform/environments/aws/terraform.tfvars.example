@@ -1,0 +1,3 @@
+aws_region           = "ap-northeast-2"
+cluster_name         = "devops-starter-cluster"
+enable_gpu_nodegroup = false    # Ray GPU 서빙 프로젝트 시 true로 변경

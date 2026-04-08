@@ -1,0 +1,22 @@
+[project]
+name = "devops-starter-api"
+version = "1.0.0"
+description = "DevOps/SRE Starter Kit - FastAPI 마이크로서비스"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

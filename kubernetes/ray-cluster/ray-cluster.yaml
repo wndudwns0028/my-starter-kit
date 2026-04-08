@@ -1,0 +1,67 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: llm-serving-cluster
+  namespace: devops-starter
+spec:
+  # Ray 버전은 ray/requirements.txt와 동일하게 유지
+  rayVersion: "2.35.0"
+
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: "0.0.0.0"
+      num-cpus: "0"    # Head 노드는 스케줄링만 담당, 추론 제외
+    template:
+      spec:
+        containers:
+          - name: ray-head
+            image: devops-starter-ray:latest
+            ports:
+              - containerPort: 6379   # Redis (Ray 내부 GCS)
+              - containerPort: 8265   # Ray Dashboard
+              - containerPort: 10001  # Ray Client
+              - containerPort: 8001   # Ray Serve HTTP
+            resources:
+              requests:
+                cpu: "2"
+                memory: "4Gi"
+              limits:
+                cpu: "4"
+                memory: "8Gi"
+            env:
+              - name: VELLUM_API_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: llm-serving-secrets
+                    key: vellum-api-key
+
+  workerGroupSpecs:
+    - groupName: gpu-workers
+      replicas: 1
+      minReplicas: 0        # 트래픽 없을 때 0으로 스케일다운
+      maxReplicas: 4
+      rayStartParams: {}
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: devops-starter-ray:latest
+              resources:
+                requests:
+                  cpu: "4"
+                  memory: "16Gi"
+                  nvidia.com/gpu: "1"   # GPU 1개 요청
+                limits:
+                  cpu: "8"
+                  memory: "32Gi"
+                  nvidia.com/gpu: "1"
+              env:
+                - name: MODEL_NAME
+                  value: "microsoft/DialoGPT-small"
+          # GPU 노드 선택 (레이블이 있는 노드에만 배포)
+          nodeSelector:
+            accelerator: nvidia-gpu
+          tolerations:
+            - key: nvidia.com/gpu
+              operator: Exists
+              effect: NoSchedule

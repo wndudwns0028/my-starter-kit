@@ -1,0 +1,84 @@
+name: CI - PR 검증
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "services/api/**"
+      - "kubernetes/**"
+
+jobs:
+  lint:
+    name: 린트 검사
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: ruff 린터 실행
+        run: |
+          pip install ruff mypy
+          ruff check services/api/
+
+      - name: mypy 타입 검사
+        run: |
+          pip install -r services/api/requirements.txt
+          mypy services/api/app/ --ignore-missing-imports
+
+  test:
+    name: 테스트 실행
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 의존성 설치
+        run: pip install -r services/api/requirements.txt pytest pytest-asyncio pytest-cov
+
+      - name: pytest 실행 (커버리지 포함)
+        working-directory: services/api
+        env:
+          REDIS_URL: redis://localhost:6379
+        run: pytest --cov=app --cov-report=xml --cov-fail-under=70
+
+      - name: 커버리지 리포트 업로드
+        uses: codecov/codecov-action@v4
+        with:
+          files: services/api/coverage.xml
+
+  build-and-scan:
+    name: Docker 빌드 및 취약점 스캔
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker 이미지 빌드
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/api
+          push: false
+          tags: devops-starter-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy 취약점 스캔
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: devops-starter-api:${{ github.sha }}
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL,HIGH"

@@ -1,0 +1,54 @@
+apiVersion: ray.io/v1
+kind: RayService
+metadata:
+  name: llm-ray-service
+  namespace: devops-starter
+spec:
+  serviceUnhealthySecondThreshold: 300
+  deploymentUnhealthySecondThreshold: 600
+  serveConfigV2: |
+    applications:
+      - name: llm-app
+        import_path: serve_app:deployment
+        route_prefix: /
+        runtime_env:
+          env_vars:
+            MODEL_NAME: "microsoft/DialoGPT-small"
+        deployments:
+          - name: LLMDeployment
+            num_replicas: 1
+            ray_actor_options:
+              num_gpus: 1
+              num_cpus: 4
+  rayClusterConfig:
+    rayVersion: "2.35.0"
+    headGroupSpec:
+      rayStartParams:
+        dashboard-host: "0.0.0.0"
+      template:
+        spec:
+          containers:
+            - name: ray-head
+              image: devops-starter-ray:latest
+              resources:
+                limits:
+                  cpu: "2"
+                  memory: "4Gi"
+    workerGroupSpecs:
+      - groupName: gpu-workers
+        replicas: 1
+        minReplicas: 0
+        maxReplicas: 4
+        rayStartParams: {}
+        template:
+          spec:
+            containers:
+              - name: ray-worker
+                image: devops-starter-ray:latest
+                resources:
+                  limits:
+                    cpu: "4"
+                    memory: "16Gi"
+                    nvidia.com/gpu: "1"
+            nodeSelector:
+              accelerator: nvidia-gpu

@@ -1,0 +1,59 @@
+name: CD - Production 배포 (태그 기반)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"    # v1.0.0 형식 태그 푸시 시 실행
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/api
+
+jobs:
+  deploy-production:
+    name: Production 배포
+    runs-on: ubuntu-latest
+    environment: production    # GitHub Environment 보호 규칙 적용
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GHCR 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker Buildx 설정
+        uses: docker/setup-buildx-action@v3
+
+      - name: 버전 태그로 이미지 빌드 및 푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/api
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: deployment.yaml 프로덕션 태그 업데이트
+        run: |
+          NEW_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}"
+          sed -i "s|image: .*devops-starter-api.*|image: ${NEW_TAG}|g" \
+            kubernetes/base/deployment.yaml
+
+      - name: 프로덕션 배포 커밋
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add kubernetes/base/deployment.yaml
+          git commit -m "ci: production 배포 ${{ github.ref_name }}"
+          git push origin HEAD:main
