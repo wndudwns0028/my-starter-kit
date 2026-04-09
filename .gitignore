@@ -2,8 +2,8 @@
 .env
 .env.local
 
-# Claude Code 로컬 설정
-.claude/
+# Claude Code 로컬 설정 (개인 설정만 제외, commands는 공유)
+.claude/settings.local.json
 
 # Python
 __pycache__/
